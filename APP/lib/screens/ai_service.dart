@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 class AIService {
 
   static const String apiUrl =
-      "http://10.0.2.2:5678/webhook/ai-tutor";
+      "https://donella-raddled-deborah.ngrok-free.dev/webhook/ai-tutor";
 
   static Future<String> askAI(String message) async {
 
