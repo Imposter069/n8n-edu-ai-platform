@@ -1,225 +1,544 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'teacher_upload_screen.dart';
 import 'main_navigation.dart';
-import '../theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
+
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<LoginScreen> createState() =>
+      _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with TickerProviderStateMixin {
-  late AnimationController _fadeController;
-  late AnimationController _slideController;
-  late Animation<double> _fadeAnim;
-  late Animation<Offset> _slideAnim;
+class _LoginScreenState
+    extends State<LoginScreen> {
 
-  @override
-  void initState() {
-    super.initState();
-    _fadeController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
-    _slideController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 900));
-    _fadeAnim =
-        CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
-    _slideAnim =
-        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-            CurvedAnimation(
-                parent: _slideController, curve: Curves.easeOutCubic));
-    _fadeController.forward();
-    _slideController.forward();
+  final supabase =
+      Supabase.instance.client;
+
+  // =====================================
+  // CONTROLLERS
+  // =====================================
+
+  final emailController =
+  TextEditingController();
+
+  final passwordController =
+  TextEditingController();
+
+  final nameController =
+  TextEditingController();
+
+  // =====================================
+  // VARIABLES
+  // =====================================
+
+  bool isLogin = true;
+
+  bool isLoading = false;
+
+  String selectedRole = "student";
+
+  // =====================================
+  // AUTH FUNCTION
+  // =====================================
+
+  Future<void> authenticate() async {
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+
+      // =================================
+      // LOGIN
+      // =================================
+
+      if (isLogin) {
+
+        await supabase.auth.signInWithPassword(
+
+          email:
+          emailController.text.trim(),
+
+          password:
+          passwordController.text.trim(),
+        );
+
+        final user =
+            supabase.auth.currentUser;
+
+        if (user != null) {
+
+          final data =
+          await supabase
+              .from('users')
+              .select()
+              .eq(
+            'email',
+            user.email!,
+          )
+              .single();
+
+          final role =
+          data['role'];
+
+          // =============================
+          // TEACHER LOGIN
+          // =============================
+
+          if (role == "teacher") {
+
+            Navigator.pushReplacement(
+
+              context,
+
+              MaterialPageRoute(
+
+                builder: (_) =>
+                const TeacherUploadScreen(),
+              ),
+            );
+          }
+
+          // =============================
+          // STUDENT LOGIN
+          // =============================
+
+          else {
+
+            Navigator.pushReplacement(
+
+              context,
+
+              MaterialPageRoute(
+
+                builder: (_) =>
+                const MainNavigation(),
+              ),
+            );
+          }
+        }
+      }
+
+      // =================================
+      // SIGNUP
+      // =================================
+
+      else {
+
+        final response =
+        await supabase.auth.signUp(
+
+          email:
+          emailController.text.trim(),
+
+          password:
+          passwordController.text.trim(),
+
+          // =================================
+          // SAVE NAME IN AUTH METADATA
+          // =================================
+
+          data: {
+
+            'name':
+            nameController.text.trim(),
+
+            'role':
+            selectedRole,
+          },
+        );
+
+        final user =
+            response.user;
+
+        if (user != null) {
+
+          // =================================
+          // SAVE USER IN DATABASE
+          // =================================
+
+          await supabase
+              .from('users')
+              .insert({
+
+            'name':
+            nameController.text.trim(),
+
+            'email':
+            emailController.text.trim(),
+
+            'role':
+            selectedRole,
+          });
+
+          ScaffoldMessenger.of(context)
+              .showSnackBar(
+
+            const SnackBar(
+
+              content: Text(
+                "Account Created Successfully",
+              ),
+            ),
+          );
+
+          setState(() {
+
+            isLogin = true;
+          });
+        }
+      }
+
+    } catch (e) {
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+
+        SnackBar(
+          content: Text(
+            e.toString(),
+          ),
+        ),
+      );
+    }
+
+    setState(() {
+
+      isLoading = false;
+    });
   }
 
-  @override
-  void dispose() {
-    _fadeController.dispose();
-    _slideController.dispose();
-    super.dispose();
-  }
-
-  void _navigate() {
-    Navigator.pushReplacement(
-      context,
-      PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const MainNavigation(),
-        transitionsBuilder: (_, animation, __, child) =>
-            FadeTransition(opacity: animation, child: child),
-        transitionDuration: const Duration(milliseconds: 400),
-      ),
-    );
-  }
+  // =====================================
+  // UI
+  // =====================================
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF0A1628),
-              Color(0xFF0D2B45),
-              Color(0xFF081525),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _fadeAnim,
-            child: SlideTransition(
-              position: _slideAnim,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Welcome text
-                      const Text(
-                        'Welcome back',
+
+      backgroundColor:
+      const Color(0xFF081B33),
+
+      body: Center(
+
+        child: SingleChildScrollView(
+
+          padding:
+          const EdgeInsets.all(24),
+
+          child: Column(
+
+            children: [
+
+              const Icon(
+
+                Icons.school,
+
+                size: 90,
+
+                color: Colors.cyanAccent,
+              ),
+
+              const SizedBox(height: 20),
+
+              const Text(
+
+                "Smart Education",
+
+                style: TextStyle(
+
+                  color: Colors.white,
+
+                  fontSize: 32,
+
+                  fontWeight:
+                  FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Text(
+
+                isLogin
+                    ? "Login to continue"
+                    : "Create new account",
+
+                style: const TextStyle(
+                  color: Colors.white70,
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // =================================
+              // NAME
+              // =================================
+
+              if (!isLogin)
+
+                Column(
+
+                  children: [
+
+                    TextField(
+
+                      controller:
+                      nameController,
+
+                      style:
+                      const TextStyle(
+                        color: Colors.white,
+                      ),
+
+                      decoration:
+                      inputDecoration(
+                        "Full Name",
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+                  ],
+                ),
+
+              // =================================
+              // EMAIL
+              // =================================
+
+              TextField(
+
+                controller:
+                emailController,
+
+                style: const TextStyle(
+                  color: Colors.white,
+                ),
+
+                decoration:
+                inputDecoration(
+                  "Email",
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // =================================
+              // PASSWORD
+              // =================================
+
+              TextField(
+
+                controller:
+                passwordController,
+
+                obscureText: true,
+
+                style: const TextStyle(
+                  color: Colors.white,
+                ),
+
+                decoration:
+                inputDecoration(
+                  "Password",
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // =================================
+              // ROLE
+              // =================================
+
+              if (!isLogin)
+
+                DropdownButtonFormField<String>(
+
+                  value:
+                  selectedRole,
+
+                  dropdownColor:
+                  const Color(0xFF10284A),
+
+                  decoration:
+                  inputDecoration(
+                    "Select Role",
+                  ),
+
+                  items: const [
+
+                    DropdownMenuItem(
+
+                      value:
+                      "student",
+
+                      child: Text(
+
+                        "Student",
+
                         style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Sign in to continue your learning journey',
+                    ),
+
+                    DropdownMenuItem(
+
+                      value:
+                      "teacher",
+
+                      child: Text(
+
+                        "Teacher",
+
                         style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 40),
+                    ),
+                  ],
 
-                      // Student Login
-                      _LoginCard(
-                        icon: Icons.school_rounded,
-                        title: 'Student',
-                        subtitle: 'Access courses, videos & AI tutor',
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF00D4FF), Color(0xFF0090CC)],
-                        ),
-                        onTap: _navigate,
+                  onChanged: (value) {
+
+                    setState(() {
+
+                      selectedRole =
+                      value!;
+                    });
+                  },
+                ),
+
+              const SizedBox(height: 40),
+
+              // =================================
+              // BUTTON
+              // =================================
+
+              SizedBox(
+
+                width: double.infinity,
+
+                height: 60,
+
+                child: ElevatedButton(
+
+                  style:
+                  ElevatedButton.styleFrom(
+
+                    backgroundColor:
+                    Colors.cyanAccent,
+
+                    foregroundColor:
+                    Colors.black,
+
+                    shape:
+                    RoundedRectangleBorder(
+
+                      borderRadius:
+                      BorderRadius.circular(
+                        18,
                       ),
-                      const SizedBox(height: 16),
+                    ),
+                  ),
 
-                      // Teacher Login
-                      _LoginCard(
-                        icon: Icons.cast_for_education_rounded,
-                        title: 'Teacher',
-                        subtitle: 'Manage classes & track progress',
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFFFB347), Color(0xFFFF8C00)],
-                        ),
-                        onTap: _navigate,
-                      ),
+                  onPressed:
 
-                      const SizedBox(height: 32),
+                  isLoading
+                      ? null
+                      : authenticate,
 
-                      // Sign up
-                      Center(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              "Don't have an account? ",
-                              style: TextStyle(
-                                  color: AppColors.textSecondary, fontSize: 13),
-                            ),
-                            GestureDetector(
-                              onTap: () {},
-                              child: const Text(
-                                'Sign up',
-                                style: TextStyle(
-                                    color: AppColors.accent,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                  child:
+
+                  isLoading
+
+                      ? const CircularProgressIndicator()
+
+                      : Text(
+
+                    isLogin
+                        ? "Login"
+                        : "Signup",
+
+                    style: const TextStyle(
+
+                      fontSize: 18,
+
+                      fontWeight:
+                      FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
-            ),
+
+              const SizedBox(height: 20),
+
+              // =================================
+              // SWITCH LOGIN/SIGNUP
+              // =================================
+
+              TextButton(
+
+                onPressed: () {
+
+                  setState(() {
+
+                    isLogin =
+                    !isLogin;
+                  });
+                },
+
+                child: Text(
+
+                  isLogin
+                      ? "Create New Account"
+                      : "Already have account?",
+
+                  style: const TextStyle(
+                    color: Colors.cyanAccent,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-}
 
-class _LoginCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Gradient gradient;
-  final VoidCallback onTap;
+  // =====================================
+  // INPUT DECORATION
+  // =====================================
 
-  const _LoginCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.gradient,
-    required this.onTap,
-  });
+  InputDecoration inputDecoration(
+      String hint,
+      ) {
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.divider),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                gradient: gradient,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: Colors.white, size: 26),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Login as $title',
-                    style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                        color: AppColors.textSecondary, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios,
-                color: AppColors.textSecondary, size: 16),
-          ],
-        ),
+    return InputDecoration(
+
+      hintText: hint,
+
+      hintStyle: const TextStyle(
+        color: Colors.white70,
+      ),
+
+      filled: true,
+
+      fillColor:
+      const Color(0xFF10284A),
+
+      border: OutlineInputBorder(
+
+        borderRadius:
+        BorderRadius.circular(18),
+
+        borderSide:
+        BorderSide.none,
       ),
     );
   }
